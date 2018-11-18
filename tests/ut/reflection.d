@@ -5,8 +5,7 @@ import ut;
 import std.file: chdir;
 
 
-@Serial
-@("mod0.number of unittests")
+@("number of unittests")
 @safe unittest {
     with(immutable Sandbox()) {
         writeFile("mod0.d",
@@ -22,8 +21,7 @@ import std.file: chdir;
 }
 
 
-@Serial
-@("mod0.results")
+@("assert.literal.bool")
 @safe unittest {
     with(immutable Sandbox()) {
         writeFile("mod1.d",
@@ -41,5 +39,27 @@ import std.file: chdir;
         tests[0].run;
         tests[1].run.shouldThrowWithMessage!TestFailure("Failure: `false`");
         tests[2].run;
+    }
+}
+
+
+@("assert.literal.bool")
+@safe unittest {
+    with(immutable Sandbox()) {
+        writeFile("mod2.d",
+                  q{
+                      module mod2;
+                      unittest {
+                          assert(42);
+                      }
+                      unittest {
+                          assert(0);
+                      }
+                  });
+        chdir(testPath);
+
+        auto tests = "mod2.d".unitTests;
+        tests[0].run;
+        tests[1].run.shouldThrowWithMessage!TestFailure("Failure: `0`");
     }
 }
