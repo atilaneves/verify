@@ -2,7 +2,9 @@ module ut;
 
 
 public import unit_threaded;
-public import verify.reflection;
+public import verify.reflection: unitTests;
+public import verify.interpreter: run;
+public import verify.exception: TestFailure;
 
 
 string testModulePath(in string path) @safe {

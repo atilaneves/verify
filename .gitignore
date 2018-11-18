@@ -14,3 +14,4 @@ verify-test-*
 *.o
 *.obj
 *.lst
+tmp
