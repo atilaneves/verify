@@ -7,35 +7,28 @@ import std.file: chdir;
 
 @("number of unittests")
 @safe unittest {
-    with(immutable Sandbox()) {
-        writeFile("mod0.d",
-                  q{
-                      module mod0;
-                      unittest {}
-                      unittest {}
-                      unittest {}
-                  });
-        chdir(testPath);
-        "mod0.d".unitTests.length.should == 3;
+    with(const TestModule(
+             q{
+                 unittest {}
+                 unittest {}
+                 unittest {}
+             }))
+    {
+        unitTests.length.should == 3;
     }
 }
 
 
 @("assert.literal.bool")
 @safe unittest {
-    with(immutable Sandbox()) {
-        writeFile("mod1.d",
-                  q{
-                      module mod1;
-                      unittest {}
-                      unittest {
-                          assert(false);
-                      }
-                      unittest {}
-                  });
-        chdir(testPath);
-
-        auto tests = "mod1.d".unitTests;
+    with(const TestModule(
+             q{
+                 unittest {}
+                 unittest { assert(false); }
+                 unittest {}
+             }))
+    {
+        auto tests = unitTests;
         tests[0].run;
         tests[1].run.shouldThrowWithMessage!TestFailure("Failure: `false`");
         tests[2].run;
@@ -43,23 +36,16 @@ import std.file: chdir;
 }
 
 
-@("assert.literal.bool")
+@("assert.literal.int")
 @safe unittest {
-    with(immutable Sandbox()) {
-        writeFile("mod2.d",
-                  q{
-                      module mod2;
-                      unittest {
-                          assert(42);
-                      }
-                      unittest {
-                          assert(0);
-                      }
-                  });
-        chdir(testPath);
-
-        auto tests = "mod2.d".unitTests;
-        tests[0].run;
-        tests[1].run.shouldThrowWithMessage!TestFailure("Failure: `0`");
+    with(const TestModule(
+             q{
+                 unittest { assert(0); }
+                 unittest { assert(42); }
+             }))
+    {
+        auto tests = unitTests;
+        tests[0].run.shouldThrowWithMessage!TestFailure("Failure: `0`");
+        tests[1].run;
     }
 }
