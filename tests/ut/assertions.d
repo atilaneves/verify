@@ -61,15 +61,34 @@ import ut;
     }
 }
 
-@("assert.literal.function.constant")
+
+@("assert.equals.function.constant")
 @safe unittest {
     with(const TestModule(
              q{
                  int five() { return 5; }
                  unittest { assert(five() == 3); }
+                 unittest { assert(five() == 5); }
              }))
     {
-        unitTests[0].run.shouldThrowWithMessage!TestFailure("Expected: 5  Got: 3");
+        auto tests = unitTests;
+        tests[0].run.shouldThrowWithMessage!TestFailure("Expected: 5  Got: 3");
+        tests[1].run;
     }
+}
 
+
+@("assert.not.equals.function.constant")
+@safe unittest {
+    with(const TestModule(
+             q{
+                 int five() { return 5; }
+                 unittest { assert(five() != 5); }
+                 unittest { assert(five() != 3); }
+             }))
+    {
+        auto tests = unitTests;
+        tests[0].run.shouldThrowWithMessage!TestFailure("Failure: 5 == 5");
+        tests[1].run;
+    }
 }

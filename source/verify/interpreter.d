@@ -9,11 +9,10 @@ void run(from!"dmd.func".UnitTestDeclaration test) @safe {
     () @trusted { test.accept(interpreter); }();
 }
 
-
-void log(A...)(auto ref A args) {
+void log(A...)(UnitTestInterpreter self, auto ref A args) {
     import unit_threaded: writelnUt;
     import std.functional: forward;
-    writelnUt(forward!args);
+    writelnUt(self.indentation, forward!args);
 }
 
 
@@ -29,6 +28,16 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
     Scope* _scope;
     Expression result;
+    string indentation;
+
+    void indent() {
+        indentation = indentation ~ "    ";
+    }
+
+    void deindent() {
+        if(indentation.length >= 4)
+            indentation.length -= 4;
+    }
 
     final Expression eval(Expression expression) {
         expression.accept(this);
@@ -51,21 +60,24 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
     }
 
     override void visit(UnitTestDeclaration test) {
-        log("\n");
-        log("Unit test decl ", test.ident);
+        indentation = "";
+        this.log("\n");
+        this.log("Unit test decl ", test.ident);
         _scope = test._scope;
         test.fbody.accept(this);
     }
 
     override void visit(CompoundStatement compound) {
-        log("    Compound statement of ", compound.statements is null ? 0 : compound.statements.dim);
+        indent; scope(exit) deindent;
+        this.log("Compound statement of ", compound.statements is null ? 0 : compound.statements.dim);
         if(compound.statements is null) return;
         foreach(statement; compound.statements.opSlice)
             statement.accept(this);
     }
 
     override void visit(ExpStatement statement) {
-        log("        ExpStatement @ ", statement.loc.tostring, ": '", statement.tostring, "'");
+        indent; scope(exit) deindent;
+        this.log("ExpStatement @ ", statement.loc.tostring, ": '", statement.tostring, "'");
         if(statement.exp is null) return;
         statement.exp.accept(this);
     }
@@ -75,9 +87,10 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
         import std.conv: text;
 
         assert(_scope !is null);
+        indent; scope(exit) deindent;
 
-        log("            AssertExp @ ", assertion.loc.tostring, ": '", assertion.tostring, "'");
-        log("            AssertExp e1: '", assertion.e1.tostring, "'");
+        this.log("AssertExp @ ", assertion.loc.tostring, ": '", assertion.tostring, "'");
+        this.log("AssertExp e1: '", assertion.e1.tostring, "'");
 
         assertion.e1.accept(this);
 
@@ -90,33 +103,45 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
     // booleans are included here
     override void visit(IntegerExp expression) {
-        log("            IntegerExp: '", expression.tostring, "'");
+        this.log("IntegerExp: '", expression.tostring, "'");
         result = expression;
     }
 
     override void visit(EqualExp expression) {
         import verify.exception: TestFailure;
+        import dmd.tokens: TOK;
         import std.conv: text;
 
-        // TODO: need to handle both expression.op == TOK.equal and TOK.notEqual
-        log("            EqualExp: '", expression.tostring, "' op: ", expression.op);
-        log("                e1: '", expression.e1.tostring, "'  op: ", expression.e1.op);
-        log("                e2: '", expression.e2.tostring, "'  op: ", expression.e2.op);
+        indent; scope(exit) deindent;
+
+        this.log("EqualExp: '", expression.tostring, "' op: ", expression.op);
+        this.log("    e1: '", expression.e1.tostring, "'  op: ", expression.e1.op);
+        this.log("    e2: '", expression.e2.tostring, "'  op: ", expression.e2.op);
 
         auto lhs = eval(expression.e1);
         auto rhs = eval(expression.e2);
 
-        if(lhs != rhs)
+        this.log("EqualExp lhs: ", lhs);
+        this.log("EqualExp rhs: ", rhs);
+        this.log("EqualExp lhs == rhs ? ", lhs == rhs);
+
+        if(expression.op == TOK.equal && !lhs.equals(rhs))
             throw new TestFailure(text("Expected: ", lhs, "  Got: ", rhs));
+
+        if(expression.op == TOK.notEqual && lhs.equals(rhs))
+            throw new TestFailure(text("Failure: ", lhs, " == ", rhs));
+
     }
 
     override void visit(CallExp expression) {
         // TODO: function arguments
+        indent; scope(exit) deindent;
         result = eval(expression.f.fbody);
     }
 
     override void visit(ReturnStatement statement) {
-        log("            Return statement: '", statement.tostring, "'");
+        indent; scope(exit) deindent;
+        this.log("Return statement: '", statement.tostring, "'");
         result = eval(statement.exp);
     }
 }
