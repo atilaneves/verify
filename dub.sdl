@@ -1,0 +1,29 @@
+name "verify"
+description "Interpret targeted unittests for faster feedback"
+authors "Atila Neves"
+copyright "Copyright © 2018, Atila Neves"
+license "boost"
+
+targetType "executable"
+targetPath "bin"
+
+dependency "dmd" version="~master"
+
+
+configuration "default" {
+
+}
+
+
+configuration "library" {
+    excludedSourceFiles "source/main.d"
+}
+
+
+configuration "unittest" {
+    targetName "ut"
+    mainSourceFile "tests/main.d"
+    excludedSourceFiles "source/main.d"
+    sourcePaths "tests"
+    dependency "unit-threaded" version="*"
+}

@@ -1,0 +1,7 @@
+{
+	"fileVersion": 1,
+	"versions": {
+		"dmd": "~master",
+		"unit-threaded": "0.7.52"
+	}
+}
