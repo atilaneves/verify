@@ -46,7 +46,7 @@ from!"dmd.dmodule".Module parseModule(T)(in T arg) @trusted {
     static if(is(T == FileName))
         auto ret = parseModule_(arg.value);
     else static if(is(T == Code))
-        auto ret = parseModule(null, arg.value);
+        auto ret = parseModule_(string.init, arg.value);
     else
         static assert(false, "Unknown argument type " ~ T.stringof);
 

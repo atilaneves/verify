@@ -6,13 +6,15 @@ import ut;
 
 @("number of unittests")
 @safe unittest {
-    with(const TestModule(
+    auto tests = unitTests(
+        Code(
              q{
                  unittest {}
                  unittest {}
                  unittest {}
-             }))
-    {
-        unitTests.length.should == 3;
-    }
+             }
+        )
+    );
+
+    tests.length.should == 3;
 }
