@@ -12,7 +12,7 @@ void run(from!"dmd.func".UnitTestDeclaration test) @safe {
 void log(A...)(UnitTestInterpreter self, auto ref A args) {
     import unit_threaded: writelnUt;
     import std.functional: forward;
-    writelnUt(self.indentation, forward!args);
+    writelnUt(self._indentation, forward!args);
 }
 
 
@@ -26,17 +26,18 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
     alias visit = Visitor.visit;
 
-    Scope* _scope;
+    private Scope* _scope;
     Expression result;
-    string indentation;
+    private string _indentation;
+    private Expression[string] _bindings;
 
     void indent() {
-        indentation = indentation ~ "    ";
+        _indentation = _indentation ~ "    ";
     }
 
     void deindent() {
-        if(indentation.length >= 4)
-            indentation.length -= 4;
+        if(_indentation.length >= 4)
+            _indentation.length -= 4;
     }
 
     final Expression eval(Expression expression) {
@@ -60,7 +61,7 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
     }
 
     override void visit(UnitTestDeclaration test) {
-        indentation = "";
+        _indentation = "";
         this.log("\n");
         this.log("Unit test decl ", test.ident);
         _scope = test._scope;
@@ -68,8 +69,8 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
     }
 
     override void visit(CompoundStatement compound) {
-        indent; scope(exit) deindent;
-        this.log("Compound statement of ", compound.statements is null ? 0 : compound.statements.dim);
+        // indent; scope(exit) deindent;
+        // this.log("Compound statement of ", compound.statements is null ? 0 : compound.statements.dim);
         if(compound.statements is null) return;
         foreach(statement; compound.statements.opSlice)
             statement.accept(this);
@@ -126,7 +127,7 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
         this.log("EqualExp lhs == rhs ? ", lhs == rhs);
 
         if(expression.op == TOK.equal && !lhs.equals(rhs))
-            throw new TestFailure(text("Expected: ", lhs, "  Got: ", rhs));
+            throw new TestFailure(text("Expected: ", rhs, "  Got: ", lhs));
 
         if(expression.op == TOK.notEqual && lhs.equals(rhs))
             throw new TestFailure(text("Failure: ", lhs, " == ", rhs));
@@ -136,6 +137,27 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
     override void visit(CallExp expression) {
         // TODO: function arguments
         indent; scope(exit) deindent;
+        const numArgs = expression.arguments ? expression.arguments.dim : 0;
+        this.log("CallExp: '", expression, "'  # args: ", numArgs);
+        this.log("  FunctionDecl: ", expression.f, "  params: ", expression.f.parameters ? expression.f.parameters.tostring : "");
+        if(numArgs > 0) {
+            foreach(i, arg; expression.arguments.opSlice) {
+                this.log("  arg", i, ": ", arg);
+                // FIXME must support same names in different stack frames
+                _bindings[(*expression.f.parameters)[i].ident.toString] = arg;
+            }
+        }
+
+        scope(exit)  {
+            if(numArgs > 0) {
+                foreach(param; expression.f.parameters.opSlice) {
+                    // FIXME must support same names in different stack frames
+                    _bindings.remove(param.toString.idup);
+                }
+            }
+        }
+
+        this.log("  bindings: ", _bindings);
         result = eval(expression.f.fbody);
     }
 
@@ -143,6 +165,36 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
         indent; scope(exit) deindent;
         this.log("Return statement: '", statement.tostring, "'");
         result = eval(statement.exp);
+    }
+
+    override void visit(AddExp expression) {
+        import dmd.mtype: Type;
+
+        indent; scope(exit) deindent;
+        this.log("AddExp: '", expression, "' op: ", expression.op);
+        this.log("  e1: '", expression.e1, "'");
+        this.log("  e2: '", expression.e2, "'");
+
+        auto lhs = eval(expression.e1); assert(lhs, "Could not evaluate lhs");
+        auto rhs = eval(expression.e2); assert(rhs, "Could not evaluate rhs");
+        this.log("  lhs: ", lhs);
+        this.log("  rhs: ", rhs);
+
+        assert(lhs.type.isintegral && rhs.type.isintegral,
+               "Only integer addition is supported for now");
+
+        // FIXME - tint32?
+        result = new IntegerExp(expression.loc, lhs.toInteger + rhs.toInteger, Type.tint32);
+    }
+
+    override void visit(VarExp expression) {
+        import dmd.mtype: Type;
+
+        indent; scope(exit) deindent;
+        this.log("VarExp: '", expression, "'");
+
+        // FIXME - call stack frames
+        result = _bindings[expression.var.ident.toString];
     }
 }
 

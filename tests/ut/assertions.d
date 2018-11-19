@@ -72,7 +72,7 @@ import ut;
              }))
     {
         auto tests = unitTests;
-        tests[0].run.shouldThrowWithMessage!TestFailure("Expected: 5  Got: 3");
+        tests[0].run.shouldThrowWithMessage!TestFailure("Expected: 3  Got: 5");
         tests[1].run;
     }
 }
@@ -89,6 +89,22 @@ import ut;
     {
         auto tests = unitTests;
         tests[0].run.shouldThrowWithMessage!TestFailure("Failure: 5 == 5");
+        tests[1].run;
+    }
+}
+
+
+@("assert.equals.function.expression.one")
+@safe unittest {
+    with(const TestModule(
+             q{
+                 int add1(int i, int j) { return i + j + 1; }
+                 unittest { assert(add1(2, 3) == 7); }
+                 unittest { assert(add1(1, 1) == 3); }
+             }))
+    {
+        auto tests = unitTests;
+        tests[0].run.shouldThrowWithMessage!TestFailure("Expected: 7  Got: 6");
         tests[1].run;
     }
 }
