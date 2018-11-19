@@ -2,7 +2,7 @@ module ut;
 
 
 public import unit_threaded;
-public import verify.reflection: unitTests;
+public import verify.reflection: unitTests, FileName, Code;
 public import verify.interpreter: run;
 public import verify.exception: TestFailure;
 
@@ -34,6 +34,6 @@ struct TestModule {
         import std.file: chdir;
 
         chdir(sandbox.testPath);
-        return unitTests_(moduleName);
+        return unitTests_(FileName(moduleName));
     }
 }

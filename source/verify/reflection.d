@@ -15,15 +15,22 @@ shared static this() {
     global.params.useUnitTests = true;
 }
 
+struct Code {
+    string value;
+}
 
-from!"dmd.func".UnitTestDeclaration[] unitTests(in string fileName) @trusted {
+struct FileName {
+    string value;
+}
+
+from!"dmd.func".UnitTestDeclaration[] unitTests(T)(in T arg) @trusted {
     import dmd.globals: global;
     import std.algorithm: map, filter;
     import std.array: array;
 
     assert(global.params.useUnitTests);
 
-    auto module_ = parseModule(fileName);
+    auto module_ = parseModule(arg);
     return module_
         .members
         .opSlice
@@ -33,10 +40,16 @@ from!"dmd.func".UnitTestDeclaration[] unitTests(in string fileName) @trusted {
 }
 
 
-from!"dmd.dmodule".Module parseModule(in string fileName) @trusted {
+from!"dmd.dmodule".Module parseModule(T)(in T arg) @trusted {
     import dmd.frontend: fullSemantic, parseModule_ = parseModule;
 
-    auto ret = parseModule_(fileName);
+    static if(is(T == FileName))
+        auto ret = parseModule_(arg.value);
+    else static if(is(T == Code))
+        auto ret = parseModule(null, arg.value);
+    else
+        static assert(false, "Unknown argument type " ~ T.stringof);
+
     assert(!ret.diagnostics.hasErrors);
     assert(!ret.diagnostics.hasWarnings);
 
