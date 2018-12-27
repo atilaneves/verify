@@ -34,8 +34,8 @@ from!"dmd.func".UnitTestDeclaration[] unitTests(T)(in T arg) @trusted {
     return module_
         .members
         .opSlice
-        .filter!(a => a.isUnitTestDeclaration)
         .map!(a => a.isUnitTestDeclaration)
+        .filter!(a => a !is null)
         .array;
 }
 

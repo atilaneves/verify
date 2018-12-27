@@ -26,9 +26,13 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
     alias visit = Visitor.visit;
 
+    /// Remembers the scope of unit test declarations
     private Scope* _scope;
+    /// Stores the result of evaluating the last expression
     Expression result;
+    /// Only used for logging
     private string _indentation;
+    /// Variable bindings
     private Expression[string] _bindings;
 
     void indent() {
@@ -52,12 +56,12 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
     override void visit(Expression expression) {
         import std.conv: text;
-        throw new Exception(text("Dunno how to handle expression '", expression.tostring, "'"));
+        throw new Exception(text("Don't know how to handle expression '", expression.tostring, "'"));
     }
 
     override void visit(Statement statement) {
         import std.conv: text;
-        throw new Exception(text("Dunno how to handle statement '", statement.tostring, "'"));
+        throw new Exception(text("Don't know how to handle statement '", statement.tostring, "'"));
     }
 
     override void visit(UnitTestDeclaration test) {
@@ -69,8 +73,6 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
     }
 
     override void visit(CompoundStatement compound) {
-        // indent; scope(exit) deindent;
-        // this.log("Compound statement of ", compound.statements is null ? 0 : compound.statements.dim);
         if(compound.statements is null) return;
         foreach(statement; compound.statements.opSlice)
             statement.accept(this);
@@ -87,7 +89,7 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
         import verify.exception: TestFailure;
         import std.conv: text;
 
-        assert(_scope !is null);
+        assert(_scope !is null);  // not sure why...
         indent; scope(exit) deindent;
 
         this.log("AssertExp @ ", assertion.loc.tostring, ": '", assertion.tostring, "'");
@@ -98,6 +100,7 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
         if(result is null)
             throw new Exception("No result to check");
 
+        // FIXME - ??
         if(!result.toInteger)
              throw new TestFailure(text("Failure: `", result.tostring, "`"));
     }
@@ -131,15 +134,14 @@ private extern (C++) final class UnitTestInterpreter: from!"dmd.visitor".Visitor
 
         if(expression.op == TOK.notEqual && lhs.equals(rhs))
             throw new TestFailure(text("Failure: ", lhs, " == ", rhs));
-
     }
 
     override void visit(CallExp expression) {
-        // TODO: function arguments
         indent; scope(exit) deindent;
         const numArgs = expression.arguments ? expression.arguments.dim : 0;
         this.log("CallExp: '", expression, "'  # args: ", numArgs);
-        this.log("  FunctionDecl: ", expression.f, "  params: ", expression.f.parameters ? expression.f.parameters.tostring : "");
+        this.log("  FunctionDecl: ", expression.f, "  params: ",
+                 expression.f.parameters ? expression.f.parameters.tostring : "");
         if(numArgs > 0) {
             foreach(i, arg; expression.arguments.opSlice) {
                 this.log("  arg", i, ": ", arg);
